@@ -7,18 +7,39 @@ from scapy.layers.inet6 import IPv6, ICMPv6EchoRequest
 
 def parse():
     parser = argparse.ArgumentParser(description="Traceroute")
-    parser.add_argument('-t', dest="timeout",
-                        help="Timeout waiting for a response",
-                        type=int, default=2)
-    parser.add_argument('-p', dest="port",
-                        help="Port (for tcp or udp)", type=int)
-    parser.add_argument('-n', dest="max_ttl",
-                        help="Maximum count of requests", type=int,
-                        default=30)
-    parser.add_argument('-v', dest="print_asn",
-                        help="Autonomous system number", action="store_true")
-    parser.add_argument('ip', help="IP Address")
-    parser.add_argument('protocol', help="TCP/UDP/ICMP")
+    parser.add_argument(
+        '-t', '--timeout',
+        dest="timeout",
+        help="Timeout waiting for a response",
+        type=int, default=2
+    )
+    parser.add_argument(
+        '-p', '--port',
+        dest="port",
+        help="Port (for tcp or udp)",
+        type=int
+    )
+    parser.add_argument(
+        '-n', '--hops',
+        dest="max_ttl",
+        help="Maximum count of requests",
+        type=int, default=30
+    )
+    parser.add_argument(
+        '-v', '--verbose',
+        dest="print_asn",
+        help="Print autonomous system number",
+        action="store_true"
+    )
+    parser.add_argument(
+        'ip',
+        help="IP Address (IPv4 or IPv6)"
+    )
+    parser.add_argument(
+        'protocol',
+        help="TCP/UDP/ICMP",
+        choices=['tcp', 'udp', 'icmp']
+    )
 
     return parser.parse_args()
 
@@ -61,7 +82,7 @@ def tcp_traceroute(ip, port, timeout, max_ttl, print_asn):
         else:
             tcp_pkt = IP(dst=ip, ttl=ttl) / TCP(dport=port)
 
-        if print_line(tcp_pkt, ip, timeout, ttl, print_asn):
+        if ip_found(tcp_pkt, ip, timeout, ttl, print_asn):
             break
         ttl += 1
 
@@ -75,7 +96,7 @@ def udp_traceroute(ip, port, timeout, max_ttl, print_asn):
         else:
             udp_pkt = IP(dst=ip, ttl=ttl) / UDP(dport=port)
 
-        if print_line(udp_pkt, ip, timeout, ttl, print_asn):
+        if ip_found(udp_pkt, ip, timeout, ttl, print_asn):
             break
         ttl += 1
 
@@ -89,12 +110,12 @@ def icmp_traceroute(ip, timeout, max_ttl, print_asn):
         else:
             icmp_pkt = IP(dst=ip, ttl=ttl) / ICMP()
 
-        if print_line(icmp_pkt, ip, timeout, ttl, print_asn):
+        if ip_found(icmp_pkt, ip, timeout, ttl, print_asn):
             break
         ttl += 1
 
 
-def print_line(pkt, ip, timeout, ttl, print_asn):
+def ip_found(pkt, ip, timeout, ttl, print_asn):
     start = time.time()
     response = sr1(pkt, timeout=timeout)
     finish = time.time()
@@ -104,7 +125,7 @@ def print_line(pkt, ip, timeout, ttl, print_asn):
         print(f'{ttl} *')
     else:
         if print_asn:
-            print(f'{ttl} {response.src} {an_time} ms {get_asn(ip)}')
+            print(f'{ttl} {response.src} {an_time} ms {get_asn(response.src)}')
         else:
             print(f'{ttl} {response.src} {an_time} ms')
         if ip == response.src:
